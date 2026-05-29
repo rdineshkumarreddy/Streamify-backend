@@ -20,10 +20,32 @@ const uploadOnCloudinary = async (localFilePath) => {
     
     let response;
     if (!isUrl) {
-      response = await cloudinary.uploader.upload(localFilePath, {
-        resource_type: "auto",
-        timeout: 600000, // 10 minutes timeout
-      });
+      const stats = fs.existsSync(localFilePath) ? fs.statSync(localFilePath) : null;
+      const ext = localFilePath.split('.').pop()?.toLowerCase() || '';
+      const isVideo = ['mp4', 'webm', 'mov', 'mkv', 'avi'].includes(ext);
+      
+      if (isVideo && stats && stats.size > 10 * 1024 * 1024) {
+        console.log(`Using Cloudinary upload_large chunked upload for ${localFilePath} (size: ${stats.size} bytes)...`);
+        response = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_large(
+            localFilePath,
+            {
+              resource_type: "video",
+              chunk_size: 6000000, // 6MB chunk size
+              timeout: 600000,
+            },
+            (error, result) => {
+              if (error) return reject(error);
+              resolve(result);
+            }
+          );
+        });
+      } else {
+        response = await cloudinary.uploader.upload(localFilePath, {
+          resource_type: isVideo ? "video" : "auto",
+          timeout: 600000, // 10 minutes timeout
+        });
+      }
     } else {
       // It's a URL
       response = await cloudinary.uploader.upload(localFilePath, {
@@ -42,13 +64,17 @@ const uploadOnCloudinary = async (localFilePath) => {
     
     return response;
   } catch (error) {
-    console.log("Error on cloudinary", error);
+    console.error("Error on cloudinary upload:", error);
     
     // Only try to delete if it's a local file path
-    if (localFilePath && !localFilePath.startsWith('http') && fs.existsSync(localFilePath)) {
-      fs.unlinkSync(localFilePath);
+    if (localFilePath && !isUrl && fs.existsSync(localFilePath)) {
+      try {
+        fs.unlinkSync(localFilePath);
+      } catch (err) {
+        console.error("Failed to delete local file:", err);
+      }
     }
-    return null;
+    throw error;
   }
 };
 
