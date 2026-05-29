@@ -106,7 +106,7 @@ const RegisterUser = asyncHandler(async (req, res) => {
 
     throw new ApiError(
       500,
-      "Something went wrong while registering the user and images were deleted"
+      error?.message || "Something went wrong while registering the user"
     );
   }
 });
