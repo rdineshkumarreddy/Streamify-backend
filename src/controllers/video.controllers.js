@@ -109,7 +109,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
     title,
     description,
     category: category || "All",
-    videoFile: videoFile.url,
+    videoFile: videoFile.secure_url || videoFile.url,
     thumbnail: thumbnailResult, 
     duration: videoFile.duration || 0,
     owner: req.user._id,
@@ -259,7 +259,7 @@ const updateVideo = asyncHandler(async (req, res) => {
   }
   if (req.file?.path) {
     const thumbnail = await uploadOnCloudinary(req.file.path);
-    updateData.thumbnail = thumbnail?.url || "";
+    updateData.thumbnail = thumbnail?.secure_url || thumbnail?.url || "";
   }
   const updatedVideo = await Video.findByIdAndUpdate(videoId, updateData, {
     new: true,

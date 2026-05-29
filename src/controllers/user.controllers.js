@@ -52,8 +52,8 @@ const RegisterUser = asyncHandler(async (req, res) => {
     // Save user
     const user = await User.create({
       fullname,
-      avatar: avatar.url,
-      coverImage: coverImage?.url || "",
+      avatar: avatar.secure_url || avatar.url,
+      coverImage: coverImage?.secure_url || coverImage?.url || "",
       email,
       password,
       username: username.toLowerCase(),
@@ -105,7 +105,7 @@ const RegisterUser = asyncHandler(async (req, res) => {
     if (coverImage) await deleteFromCloudinary(coverImage.public_id);
 
     throw new ApiError(
-      500,
+      error.statusCode || 500,
       error?.message || "Something went wrong while registering the user"
     );
   }
@@ -273,7 +273,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     req.user._id,
     {
       $set: {
-        avatar: avatar.url,
+        avatar: avatar.secure_url || avatar.url,
       },
     },
     { new: true }
@@ -298,7 +298,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     req.user?._id,
     {
       $set: {
-        coverImage: coverImage.url,
+        coverImage: coverImage.secure_url || coverImage.url,
       },
     },
     { new: true }
