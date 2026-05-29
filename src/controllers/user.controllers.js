@@ -62,18 +62,15 @@ const RegisterUser = asyncHandler(async (req, res) => {
       isVerified: hasSMTP ? false : true,
     });
 
-    // Send email if SMTP is configured
+    // Send email if SMTP is configured (non-blocking)
     if (hasSMTP) {
-      try {
-        await sendEmail({
-          email,
-          subject: "Verify your email",
-          message: `<h1>Welcome to Streamify</h1><p>Your OTP is: <strong>${otp}</strong></p>`,
-        });
-      } catch (emailError) {
+      sendEmail({
+        email,
+        subject: "Verify your email",
+        message: `<h1>Welcome to Streamify</h1><p>Your OTP is: <strong>${otp}</strong></p>`,
+      }).catch((emailError) => {
         console.error("Failed to send verification email:", emailError);
-        // We still created the user, they can retry sending OTP later or we could delete them
-      }
+      });
     }
 
     // Fetch created user without password/refreshToken
