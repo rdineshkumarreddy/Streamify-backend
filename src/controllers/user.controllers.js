@@ -579,7 +579,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
   }
 
   const user = await User.findOne({
-    email,
+    email: email.toLowerCase(),
     verifyOtp: otp,
     verifyOtpExpiry: { $gt: Date.now() },
   });
