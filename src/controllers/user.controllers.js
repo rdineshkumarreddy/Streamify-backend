@@ -47,7 +47,7 @@ const RegisterUser = asyncHandler(async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 3600000); // 1 hour
 
-    const hasSMTP = process.env.SMTP_USER && process.env.SMTP_PASS;
+    const hasEmailConfig = (process.env.SMTP_USER && process.env.SMTP_PASS) || process.env.RESEND_API_KEY;
 
     // Save user
     const user = await User.create({
@@ -59,11 +59,11 @@ const RegisterUser = asyncHandler(async (req, res) => {
       username: username.toLowerCase(),
       verifyOtp: otp,
       verifyOtpExpiry: otpExpiry,
-      isVerified: hasSMTP ? false : true,
+      isVerified: hasEmailConfig ? false : true,
     });
 
-    // Send email if SMTP is configured (non-blocking)
-    if (hasSMTP) {
+    // Send email if configured (non-blocking)
+    if (hasEmailConfig) {
       sendEmail({
         email,
         subject: "Verify your email",
@@ -671,9 +671,9 @@ const forgotPassword = asyncHandler(async (req, res) => {
   user.forgotPasswordOtpExpiry = otpExpiry;
   await user.save({ validateBeforeSave: false });
 
-  const hasSMTP = process.env.SMTP_USER && process.env.SMTP_PASS;
+  const hasEmailConfig = (process.env.SMTP_USER && process.env.SMTP_PASS) || process.env.RESEND_API_KEY;
 
-  if (hasSMTP) {
+  if (hasEmailConfig) {
     sendEmail({
       email,
       subject: "Reset your password",
