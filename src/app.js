@@ -6,7 +6,12 @@ const app = express();
 
 app.use(
   cors({
-    origin: ['https://streamify-7b8a.onrender.com', 'http://localhost:5173'],
+    origin: [
+      process.env.CORS_ORIGIN,
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://streamify-7b8a.onrender.com"
+    ].filter(Boolean),
     credentials: true,
   })
 );
