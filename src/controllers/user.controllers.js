@@ -90,7 +90,10 @@ const RegisterUser = asyncHandler(async (req, res) => {
       .json(
         new ApiResponse(
           200,
-          createdUser,
+          {
+            user: createdUser,
+            otp: otp
+          },
           "User registered successfully. Please verify your email with the OTP sent."
         )
       );
