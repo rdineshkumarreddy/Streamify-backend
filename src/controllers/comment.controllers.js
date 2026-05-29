@@ -22,7 +22,11 @@ const getVideoComments = asyncHandler(async (req, res) => {
     const commentsAggregate = Comment.aggregate([
         {
             $match: {
-                video: new mongoose.Types.ObjectId(videoId)
+                video: new mongoose.Types.ObjectId(videoId),
+                $or: [
+                    { parentComment: null },
+                    { parentComment: { $exists: false } }
+                ]
             }
         },
         {
@@ -49,6 +53,84 @@ const getVideoComments = asyncHandler(async (req, res) => {
                 }
             }
         },
+        // Lookup likes for this comment
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "comment",
+                as: "commentLikes"
+            }
+        },
+        {
+            $addFields: {
+                likes: { $size: "$commentLikes" },
+                isLiked: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$commentLikes.likedBy"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        // Lookup replies for this comment
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "parentComment",
+                as: "replies",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        username: 1,
+                                        fullname: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: { $first: "$owner" }
+                        }
+                    },
+                    // Lookup likes for each reply
+                    {
+                        $lookup: {
+                            from: "likes",
+                            localField: "_id",
+                            foreignField: "comment",
+                            as: "replyLikes"
+                        }
+                    },
+                    {
+                        $addFields: {
+                            likes: { $size: "$replyLikes" },
+                            isLiked: {
+                                $cond: {
+                                    if: { $in: [req.user?._id, "$replyLikes.likedBy"] },
+                                    then: true,
+                                    else: false
+                                }
+                            }
+                        }
+                    },
+                    {
+                        $sort: { createdAt: 1 } // Oldest replies first
+                    }
+                ]
+            }
+        },
         {
             $sort: {
                 createdAt: -1
@@ -70,7 +152,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
 const addComment = asyncHandler(async (req, res) => {
     const {videoId} = req.params
-    const {content} = req.body
+    const {content, parentCommentId} = req.body
 
     if (!isValidObjectId(videoId)) {
         throw new ApiError(400, "Invalid video ID")
@@ -84,11 +166,17 @@ const addComment = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Video not found")
     }
 
-    const comment = await Comment.create({
+    const commentData = {
         content,
         video: videoId,
         owner: req.user._id
-    })
+    }
+
+    if (parentCommentId && isValidObjectId(parentCommentId)) {
+        commentData.parentComment = parentCommentId;
+    }
+
+    const comment = await Comment.create(commentData)
     
     // Populate owner details for immediate UI update
     await comment.populate("owner", "username fullname avatar");
